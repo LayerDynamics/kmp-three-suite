@@ -12,8 +12,15 @@
       "types": "./index.d.ts"
     }
   },
-  "files": ["src/", "index.d.ts", "README.md", "LICENSE"],
-  "engines": { "node": ">=20" },
+  "files": [
+    "src/",
+    "index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
@@ -26,11 +33,12 @@
     "fflate": "0.8.2"
   },
   "devDependencies": {
-    "vitest": "2.1.9",
     "@playwright/test": "1.59.1",
-    "rollup": "4.60.1",
     "@rollup/plugin-node-resolve": "15.3.0",
-    "eslint": "9.39.4"
+    "@vitest/coverage-v8": "^2.1.9",
+    "eslint": "9.39.4",
+    "rollup": "4.60.1",
+    "vitest": "2.1.9"
   },
   "license": "MIT"
 }

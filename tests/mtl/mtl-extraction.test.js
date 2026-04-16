@@ -45,6 +45,39 @@ describe('extractMtl — header + PNG', () => {
   })
 })
 
+describe('extractMtl — synthetic edge cases', () => {
+  it('returns null materialName when footer is eof', () => {
+    // Minimal buffer: header only, no PNG, no footer
+    const head = new TextEncoder().encode('//--lux:mat:1.0\n//--lux:shader:2.0\n')
+    const buf = new Uint8Array(head.length)
+    buf.set(head, 0)
+    const res = extractMtl(buf)
+    expect(res.footer.type).toBe('eof')
+    expect(res.materialName).toBeNull()
+  })
+  it('pattern-3 fallback finds capitalised string in footer', () => {
+    // Construct a footer with 0x09 0x00 0x0b 0x00 (zero length triggers pattern-3 scan)
+    const head = new TextEncoder().encode('//--lux:shader:1\n')
+    const name = new TextEncoder().encode('CapitalisedLabel')
+    const prefix = Uint8Array.of(0x09, 0x00, 0x0b, 0x00)
+    const buf = new Uint8Array(head.length + prefix.length + name.length)
+    buf.set(head, 0)
+    buf.set(prefix, head.length)
+    buf.set(name, head.length + prefix.length)
+    const res = extractMtl(buf)
+    expect(res.materialName).toMatch(/CapitalisedLabel/)
+  })
+  it('header without KeyShot version omits the field', () => {
+    const head = new TextEncoder().encode('//--lux:mat:1.0\n//--lux:shader:2.0\n')
+    const buf = new Uint8Array(head.length)
+    buf.set(head, 0)
+    const res = extractMtl(buf)
+    expect(res.header.matVersion).toBe('1.0')
+    expect(res.header.shaderVersion).toBe('2.0')
+    expect(res.header.keyshotVersion).toBeUndefined()
+  })
+})
+
 describe('extractMtl — material name', () => {
   it('extracts "Sienna" from metallic paint', () => {
     const { buf } = loadMtl(join(KMP_DIR, 'paint-metallic-sienna-gold.kmp'))

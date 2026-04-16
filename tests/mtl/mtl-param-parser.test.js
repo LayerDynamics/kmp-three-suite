@@ -111,6 +111,51 @@ describe('name-first BOOL fallback', () => {
     expect(inferred.rawLength).toBeGreaterThan(0)
     expect(inferred.name).toMatch(/some/)
   })
+  it('name-first falls back to FLOAT marker when known name encodes float', () => {
+    const enc = new TextEncoder()
+    // 'shadow color' at offset 0 — marker scan rejects (no printable-before).
+    const name = enc.encode('shadow color')
+    const buf = new Uint8Array(name.length + 6)
+    buf.set(name, 0)
+    buf[name.length] = 0x17
+    buf[name.length + 1] = 0x02
+    new DataView(buf.buffer).setFloat32(name.length + 2, 0.75, true)
+    const view = new DataView(buf.buffer)
+    const out = parseParamSection(buf, view, 0, buf.length)
+    const p = out.find(x => x.name === 'shadow color')
+    expect(p.type).toBe('float')
+    expect(p.value).toBeCloseTo(0.75, 6)
+  })
+  it('name-first falls back to INT marker when known name encodes int', () => {
+    const enc = new TextEncoder()
+    const name = enc.encode('contour color')
+    const buf = new Uint8Array(name.length + 6)
+    buf.set(name, 0)
+    buf[name.length] = 0x1d
+    buf[name.length + 1] = 0x00
+    new DataView(buf.buffer).setUint32(name.length + 2, 42, true)
+    const view = new DataView(buf.buffer)
+    const out = parseParamSection(buf, view, 0, buf.length)
+    const p = out.find(x => x.name === 'contour color')
+    expect(p.type).toBe('int')
+    expect(p.value).toBe(42)
+  })
+  it('name-first falls back to COLOR marker when known name encodes color', () => {
+    const enc = new TextEncoder()
+    const name = enc.encode('shadow color')
+    const buf = new Uint8Array(name.length + 14)
+    buf.set(name, 0)
+    buf[name.length] = 0x27
+    buf[name.length + 1] = 0x05
+    const v = new DataView(buf.buffer)
+    v.setFloat32(name.length + 2, 0.1, true)
+    v.setFloat32(name.length + 6, 0.2, true)
+    v.setFloat32(name.length + 10, 0.3, true)
+    const out = parseParamSection(buf, v, 0, buf.length)
+    const p = out.find(x => x.name === 'shadow color')
+    expect(p.type).toBe('color')
+    expect(p.value.r).toBeCloseTo(0.1, 6)
+  })
   it('picks up BOOL missed by marker scan by searching known names', () => {
     // A name that begins at offset 0 means there is no printable-before byte,
     // so isValidBoolMarker rejects. The name-first pass must still find it.
