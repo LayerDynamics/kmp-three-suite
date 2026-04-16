@@ -48,6 +48,35 @@ export function parseParamSection(buf, view, start, end) {
     valueEnd = parsed.valueEnd
   }
 
+  // Pass 3: bare-name tail inference — KeyShot omits the marker byte for
+  // trailing false booleans, so a printable run after the last parsed value
+  // is recorded as type='bool_inferred', value=0, bool=false.
+  // Evidence: kmp-pipeline.mjs:769-796.
+  if (cursor < end) {
+    let trailStart = cursor
+    while (trailStart < end && !isPrintable(buf[trailStart])) trailStart++
+    if (trailStart < end) {
+      let trailEnd = trailStart
+      while (trailEnd < end && isPrintable(buf[trailEnd])) trailEnd++
+      if (trailEnd > trailStart) {
+        let raw = ''
+        for (let i = trailStart; i < trailEnd; i++) raw += String.fromCharCode(buf[i])
+        const bareName = raw
+          .replace(/^[^a-zA-Z_]+/, '')
+          .replace(/[/;:].+$/, '')
+        if (bareName.length > 3) {
+          const claimStart = cursor
+          const rawLen = end - claimStart
+          results.set(claimStart, {
+            name: bareName, type: 'bool_inferred', subId: 0, offset: claimStart,
+            rawLength: rawLen, value: 0, bool: false,
+            note: 'No type marker found — inferred as bool false from bare name at end of param section',
+          })
+        }
+      }
+    }
+  }
+
   // Pass 2: name-first fallback — find known bool param names the marker
   // scan missed (e.g. 'transparency' at offset 0 with no preceding byte).
   const text = new TextDecoder('latin1').decode(buf.subarray(start, end))

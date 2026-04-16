@@ -91,6 +91,26 @@ describe('name-first BOOL fallback', () => {
     expect(KNOWN_BOOL_PARAM_NAMES).toContain('outline contour')
     expect(KNOWN_BOOL_PARAM_NAMES).toContain('light source shadows')
   })
+  it('records trailing printable text with no marker as bool_inferred false', () => {
+    const enc = new TextEncoder()
+    const name = enc.encode('roughness')
+    const head = new Uint8Array(name.length + 6)
+    head.set(name, 0)
+    head[name.length] = 0x17
+    head[name.length + 1] = 0x00
+    new DataView(head.buffer).setFloat32(name.length + 2, 0.3, true)
+    const trailingName = enc.encode('some trailing label')
+    const buf = new Uint8Array(head.length + trailingName.length)
+    buf.set(head, 0)
+    buf.set(trailingName, head.length)
+    const view = new DataView(buf.buffer)
+    const out = parseParamSection(buf, view, 0, buf.length)
+    const inferred = out.find(p => p.type === 'bool_inferred')
+    expect(inferred).toBeDefined()
+    expect(inferred.bool).toBe(false)
+    expect(inferred.rawLength).toBeGreaterThan(0)
+    expect(inferred.name).toMatch(/some/)
+  })
   it('picks up BOOL missed by marker scan by searching known names', () => {
     // A name that begins at offset 0 means there is no printable-before byte,
     // so isValidBoolMarker rejects. The name-first pass must still find it.
