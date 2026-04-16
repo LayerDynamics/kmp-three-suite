@@ -35,7 +35,7 @@ export function extractMtl(mtlBuf) {
   const shaderType = rawParameters.length > 0 ? rawParameters[0].name : null
 
   const footer = findFooter(buf, end)
-  const materialName = null
+  const materialName = extractMaterialName(buf, footer)
 
   return {
     header,
@@ -48,6 +48,62 @@ export function extractMtl(mtlBuf) {
     shaderType,
     _buf: buf,
   }
+}
+
+function extractMaterialName(buf, footer) {
+  if (footer.type === 'eof') return null
+  const footerStart = footer.offset
+
+  // Pattern 1: MATMETA — look for the "attribute" keyword, then the printable run
+  // after it (terminated by ';' or non-printable). Evidence: kmp-pipeline.mjs:861-871.
+  if (footer.type === 'matmeta') {
+    const attrMarker = new TextEncoder().encode('attribute')
+    const attrPos = findSub(buf, attrMarker, footerStart)
+    if (attrPos >= 0) {
+      let i = attrPos + attrMarker.length
+      while (i < buf.length && !isPrintableByte(buf[i])) i++
+      const nameStart = i
+      while (i < buf.length && buf[i] >= 0x20 && buf[i] < 0x7f && buf[i] !== 0x3b) i++
+      const name = readAscii(buf, nameStart, i).trim()
+      if (name.length > 3) return name
+    }
+  }
+
+  // Pattern 2: name footer prefix 0x09 0x00 0x0b <len_byte> <name> ';'.
+  // Evidence: kmp-pipeline.mjs:873-881.
+  if (footer.type === 'name_footer'
+      && buf[footerStart] === 0x09 && buf[footerStart + 1] === 0x00 && buf[footerStart + 2] === 0x0b) {
+    const nameLen = buf[footerStart + 3]
+    if (nameLen > 0 && footerStart + 4 + nameLen <= buf.length) {
+      const raw = readAscii(buf, footerStart + 4, footerStart + 4 + nameLen).replace(/;$/, '').trim()
+      if (raw.length > 0) return raw
+    }
+  }
+
+  // Pattern 3: scan the footer region for a capitalised printable string of
+  // length > 5. Evidence: kmp-pipeline.mjs:883-893.
+  let i = footerStart
+  while (i < buf.length) {
+    if (isPrintableByte(buf[i])) {
+      const s = i
+      while (i < buf.length && buf[i] >= 0x20 && buf[i] < 0x7f && buf[i] !== 0x3b) i++
+      const cand = readAscii(buf, s, i).trim()
+      if (cand.length > 5 && /^[A-Z]/.test(cand)) return cand
+    }
+    i++
+  }
+  return null
+}
+
+function isPrintableByte(b) { return b >= 0x20 && b < 0x7f }
+
+function findSub(buf, needle, start) {
+  const last = buf.length - needle.length
+  outer: for (let i = start; i <= last; i++) {
+    for (let j = 0; j < needle.length; j++) if (buf[i + j] !== needle[j]) continue outer
+    return i
+  }
+  return -1
 }
 
 function decodeSubShaderRegion(buf, view, paramStart, paramEnd) {

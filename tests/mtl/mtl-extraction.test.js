@@ -45,6 +45,24 @@ describe('extractMtl — header + PNG', () => {
   })
 })
 
+describe('extractMtl — material name', () => {
+  it('extracts "Sienna" from metallic paint', () => {
+    const { buf } = loadMtl(join(KMP_DIR, 'paint-metallic-sienna-gold.kmp'))
+    const res = extractMtl(buf)
+    expect(res.materialName).toMatch(/Sienna/)
+  })
+  it('extracts "Toon Fill Black" from toon fixture', () => {
+    const { buf } = loadMtl(join(KMP_DIR, 'toon-fill-black-bright.kmp'))
+    const res = extractMtl(buf)
+    expect(res.materialName).toMatch(/Toon Fill Black/)
+  })
+  it('extracts "Candle Wax" from translucent fixture', () => {
+    const { buf } = loadMtl(join(KMP_DIR, 'translucent-candle-wax.kmp'))
+    const res = extractMtl(buf)
+    expect(res.materialName).toMatch(/Candle Wax/)
+  })
+})
+
 describe('extractMtl — sub-shader color slots', () => {
   it('populates subShaderRegion.colorSlots for translucent candle wax', () => {
     const { buf } = loadMtl(join(KMP_DIR, 'translucent-candle-wax.kmp'))
