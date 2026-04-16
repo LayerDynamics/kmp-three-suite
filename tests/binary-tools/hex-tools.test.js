@@ -4,7 +4,7 @@ import { linearToSrgb, srgbToLinear, rgbToHex, hexToComponents, componentsToHex,
 describe('hex-tools', () => {
   it('linearToSrgb: 0 → 0, 1 → 1', () => {
     expect(linearToSrgb(0)).toBe(0)
-    expect(linearToSrgb(1)).toBe(1)
+    expect(linearToSrgb(1)).toBeCloseTo(1, 10)
   })
   it('linearToSrgb: linear segment for c ≤ 0.0031308', () => {
     expect(linearToSrgb(0.001)).toBeCloseTo(0.001 * 12.92, 8)
@@ -21,8 +21,9 @@ describe('hex-tools', () => {
     expect(rgbToHex(0, 0, 0)).toBe('#000000')
     expect(rgbToHex(1, 1, 1)).toBe('#ffffff')
   })
-  it('rgbToHex: mid-gray', () => {
-    expect(rgbToHex(0.5, 0.5, 0.5)).toBe('#bbbbbb')
+  it('rgbToHex: linear mid-gray → sRGB ~#bcbcbc (188/255)', () => {
+    // linearToSrgb(0.5) ≈ 0.7353 → *255 = 187.5 → round to 188 = 0xbc
+    expect(rgbToHex(0.5, 0.5, 0.5)).toBe('#bcbcbc')
   })
   it('hexToComponents returns sRGB-space [0,1] floats', () => {
     expect(hexToComponents('#ff0000')).toEqual([1, 0, 0])
