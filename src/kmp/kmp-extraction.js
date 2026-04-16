@@ -1,7 +1,6 @@
 // KMP archive → list of per-MTL extractions.
 // Input forms: path | Uint8Array | ArrayBuffer | Buffer | File | Blob.
 
-import { readFileSync } from 'node:fs'
 import { unzipArchive, safeExtract, enumerateEntries } from '../binary-tools/binary-tools.js'
 import { extractMtl } from '../mtl/mtl-extraction.js'
 import { parseXmlConfig } from './kmp-param-parser.js'
@@ -26,7 +25,10 @@ export async function extractKmp(input, options = {}) {
 }
 
 async function resolveInput(input) {
-  if (typeof input === 'string') return new Uint8Array(readFileSync(input))
+  if (typeof input === 'string') {
+    const { readFileSync } = await import('node:fs')
+    return new Uint8Array(readFileSync(input))
+  }
   if (input instanceof Uint8Array) return input
   if (input instanceof ArrayBuffer) return new Uint8Array(input)
   if (typeof Buffer !== 'undefined' && input && Buffer.isBuffer(input)) {
