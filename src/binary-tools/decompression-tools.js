@@ -3,7 +3,7 @@
 // a CLI shell-out so this works in both Node and modern browsers.
 
 import { unzipSync } from 'fflate'
-import { KmpParseError } from '../pipeline/process.js'
+import { KmpParseError } from '../pipeline/errors.js'
 
 const TEXTURE_EXTS = new Set(['png', 'jpg', 'jpeg', 'exr', 'hdr', 'tif', 'tiff', 'bmp'])
 
