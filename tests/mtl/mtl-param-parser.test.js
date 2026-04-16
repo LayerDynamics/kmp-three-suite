@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseParamSection } from '../../src/mtl/mtl-param-parser.js'
+import { parseParamSection, KNOWN_BOOL_PARAM_NAMES } from '../../src/mtl/mtl-param-parser.js'
 
 function mkBuf(pieces) {
   const enc = new TextEncoder()
@@ -81,5 +81,31 @@ describe('parseParamSection — marker scan', () => {
     const out = parseParamSection(buf, v, 0, buf.length)
     expect(out[0].name).toBe('contour_angle')
     expect(out[0].value).toBeCloseTo(60, 6)
+  })
+})
+
+describe('name-first BOOL fallback', () => {
+  it('KNOWN_BOOL_PARAM_NAMES includes expected param names', () => {
+    expect(KNOWN_BOOL_PARAM_NAMES).toContain('transparency')
+    expect(KNOWN_BOOL_PARAM_NAMES).toContain('contour width is in pixels')
+    expect(KNOWN_BOOL_PARAM_NAMES).toContain('outline contour')
+    expect(KNOWN_BOOL_PARAM_NAMES).toContain('light source shadows')
+  })
+  it('picks up BOOL missed by marker scan by searching known names', () => {
+    // A name that begins at offset 0 means there is no printable-before byte,
+    // so isValidBoolMarker rejects. The name-first pass must still find it.
+    const enc = new TextEncoder()
+    const name = enc.encode('transparency')
+    const buf = new Uint8Array(name.length + 6)
+    buf.set(name, 0)
+    buf[name.length] = 0x25
+    buf[name.length + 1] = 0x00
+    const view = new DataView(buf.buffer)
+    view.setUint32(name.length + 2, 1, true)
+    const out = parseParamSection(buf, view, 0, buf.length)
+    const t = out.find(p => p.name === 'transparency')
+    expect(t).toBeDefined()
+    expect(t.type).toBe('bool')
+    expect(t.value).toBe(1)
   })
 })

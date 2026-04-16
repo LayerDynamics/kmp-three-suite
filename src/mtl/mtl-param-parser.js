@@ -10,6 +10,21 @@ import {
   cleanParamName, rgbToHex, readF32LE, readU32LE,
 } from '../binary-tools/binary-tools.js'
 
+// Known boolean param names that the marker scan may miss because 0x25 is
+// printable ASCII. Evidence: kmp-pipeline.mjs:802-807.
+export const KNOWN_BOOL_PARAM_NAMES = Object.freeze([
+  'transparency',
+  'contour width is in pixels',
+  'outline contour',
+  'material contour',
+  'part contour',
+  'interior edge contour',
+  'environment shadows',
+  'light source shadows',
+  'contour color',
+  'shadow color',
+])
+
 export function parseParamSection(buf, view, start, end) {
   const results = new Map()
 
@@ -31,6 +46,36 @@ export function parseParamSection(buf, view, start, end) {
     results.set(marker.pos, record)
     cursor = parsed.valueEnd
     valueEnd = parsed.valueEnd
+  }
+
+  // Pass 2: name-first fallback — find known bool param names the marker
+  // scan missed (e.g. 'transparency' at offset 0 with no preceding byte).
+  const text = new TextDecoder('latin1').decode(buf.subarray(start, end))
+  for (const pn of KNOWN_BOOL_PARAM_NAMES) {
+    let idx = text.indexOf(pn)
+    while (idx >= 0) {
+      const absOffset = start + idx + pn.length
+      if (absOffset + 6 <= end && !results.has(absOffset)) {
+        const markerByte = buf[absOffset]
+        const subId = buf[absOffset + 1]
+        if (markerByte === TYPE_BOOL) {
+          const v = readU32LE(view, absOffset + 2)
+          results.set(absOffset, { name: pn, type: 'bool', subId, offset: absOffset, value: v, bool: v !== 0 })
+        } else if (markerByte === TYPE_FLOAT) {
+          const v = readF32LE(view, absOffset + 2)
+          results.set(absOffset, { name: pn, type: 'float', subId, offset: absOffset, value: v })
+        } else if (markerByte === TYPE_INT) {
+          const v = readU32LE(view, absOffset + 2)
+          results.set(absOffset, { name: pn, type: 'int', subId, offset: absOffset, value: v })
+        } else if (markerByte === TYPE_COLOR && absOffset + 14 <= end) {
+          const r = readF32LE(view, absOffset + 2)
+          const g = readF32LE(view, absOffset + 6)
+          const b = readF32LE(view, absOffset + 10)
+          results.set(absOffset, { name: pn, type: 'color', subId, offset: absOffset, value: { r, g, b }, hex: rgbToHex(r, g, b) })
+        }
+      }
+      idx = text.indexOf(pn, idx + pn.length)
+    }
   }
 
   return Array.from(results.values()).sort((a, b) => a.offset - b.offset)
