@@ -8,7 +8,10 @@ import { KmpParseError } from '../pipeline/errors.js'
 
 export async function extractKmp(input, options = {}) {
   const bytes = await resolveInput(input)
-  const archive = safeExtract(unzipArchive(bytes), { maxSize: options.maxArchiveSize })
+  const archive = safeExtract(
+    unzipArchive(bytes, { maxSize: options.maxArchiveSize }),
+    { maxSize: options.maxArchiveSize }
+  )
   const cat = enumerateEntries(archive)
   if (cat.mtls.length === 0) throw new KmpParseError('NO_MTL', 'No .mtl file in archive')
   const xmlConfig = cat.xml ? parseXmlConfig(new TextDecoder().decode(archive.get(cat.xml))) : null

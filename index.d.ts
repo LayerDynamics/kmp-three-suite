@@ -286,7 +286,7 @@ export namespace binaryTools {
   export function isValidBoolMarker(buf: Uint8Array, pos: number, end: number): boolean
   export function isValidTexslotMarker(buf: Uint8Array, pos: number, end: number): boolean
   export function cleanParamName(raw: string): string
-  export function unzipArchive(input: Uint8Array | ArrayBuffer): Map<string, Uint8Array>
+  export function unzipArchive(input: Uint8Array | ArrayBuffer, options?: { maxSize?: number }): Map<string, Uint8Array>
   export function enumerateEntries(archive: Map<string, Uint8Array>): { mtls: string[]; xml: string | null; textures: string[] }
   export function safeExtract(archive: Map<string, Uint8Array>, options?: { maxSize?: number }): Map<string, Uint8Array>
   export function findPngBounds(buf: Uint8Array): { start: number; end: number; size: number } | null

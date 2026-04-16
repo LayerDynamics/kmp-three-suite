@@ -23,6 +23,35 @@ describe('unzipArchive', () => {
   it('throws KmpParseError on malformed input', () => {
     expect(() => unzipArchive(new Uint8Array([0, 1, 2, 3]))).toThrow(KmpParseError)
   })
+  it('rejects entries whose declared size exceeds maxSize (central-dir pre-gate)', () => {
+    const zip = makeZip({ 'big.bin': new Uint8Array(8192) })
+    expect(() => unzipArchive(zip, { maxSize: 4096 })).toThrow(KmpParseError)
+  })
+  it('rejects when cumulative declared size across entries exceeds maxSize', () => {
+    const zip = makeZip({
+      'a.bin': new Uint8Array(2048),
+      'b.bin': new Uint8Array(2048),
+      'c.bin': new Uint8Array(2048),
+    })
+    expect(() => unzipArchive(zip, { maxSize: 4096 })).toThrow(KmpParseError)
+  })
+  it('passes archives whose declared total is within maxSize', () => {
+    const zip = makeZip({ 'a.mtl': new Uint8Array(512), 'b.mtl': new Uint8Array(512) })
+    const archive = unzipArchive(zip, { maxSize: 4096 })
+    expect(archive.size).toBe(2)
+    expect(archive.get('a.mtl').byteLength).toBe(512)
+  })
+  it('rounds BAD_ZIP messages with the offending entry name', () => {
+    const zip = makeZip({ 'ok.bin': new Uint8Array(32), 'overflow.bin': new Uint8Array(8192) })
+    try {
+      unzipArchive(zip, { maxSize: 4096 })
+      throw new Error('expected KmpParseError')
+    } catch (e) {
+      expect(e).toBeInstanceOf(KmpParseError)
+      expect(e.code).toBe('BAD_ZIP')
+      expect(e.message).toContain('overflow.bin')
+    }
+  })
 })
 
 describe('enumerateEntries', () => {
