@@ -44,3 +44,31 @@ describe('extractMtl — header + PNG', () => {
     expect(res.paramSection.end).toBeLessThanOrEqual(buf.length)
   })
 })
+
+describe('extractMtl — sub-shader color slots', () => {
+  it('populates subShaderRegion.colorSlots for translucent candle wax', () => {
+    const { buf } = loadMtl(join(KMP_DIR, 'translucent-candle-wax.kmp'))
+    const res = extractMtl(buf)
+    expect(res.subShaderRegion).not.toBeNull()
+    expect(res.subShaderRegion.colorSlots).toBeInstanceOf(Map)
+    expect(res.subShaderRegion.colorSlots.size).toBeGreaterThan(0)
+    for (const [slotIndex, color] of res.subShaderRegion.colorSlots) {
+      expect(typeof slotIndex).toBe('number')
+      expect(color.r).toBeGreaterThanOrEqual(0)
+      expect(color.r).toBeLessThanOrEqual(1)
+      expect(color.g).toBeGreaterThanOrEqual(0)
+      expect(color.g).toBeLessThanOrEqual(1)
+      expect(color.b).toBeGreaterThanOrEqual(0)
+      expect(color.b).toBeLessThanOrEqual(1)
+    }
+  })
+  it('records sub-shader blocks with offsets', () => {
+    const { buf } = loadMtl(join(KMP_DIR, 'translucent-candle-wax.kmp'))
+    const res = extractMtl(buf)
+    expect(res.subShaderRegion.blocks.length).toBeGreaterThan(0)
+    for (const block of res.subShaderRegion.blocks) {
+      expect(block.offset).toBeGreaterThan(0)
+      expect(typeof block.subId).toBe('number')
+    }
+  })
+})

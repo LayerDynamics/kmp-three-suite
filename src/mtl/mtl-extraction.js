@@ -28,7 +28,7 @@ export function extractMtl(mtlBuf) {
   const pngEnd = pngInfo ? pngInfo.end : -1
   const { start, end } = findParamSection(buf, pngEnd, -1)
 
-  const subShaderRegion = findSubShaderRegion(buf, start, end, KNOWN_SHADER_TYPES)
+  const subShaderRegion = decodeSubShaderRegion(buf, view, start, end)
   const parseStart = subShaderRegion ? subShaderRegion.mainShaderStart : start
 
   const rawParameters = parseParamSection(buf, view, parseStart, end)
@@ -47,6 +47,51 @@ export function extractMtl(mtlBuf) {
     materialName,
     shaderType,
     _buf: buf,
+  }
+}
+
+function decodeSubShaderRegion(buf, view, paramStart, paramEnd) {
+  const region = findSubShaderRegion(buf, paramStart, paramEnd, KNOWN_SHADER_TYPES)
+  if (!region) return null
+
+  const blocks = []
+  const colorSlots = new Map()
+
+  // Each color-definition block begins with the 4-byte header `0x89 0x00 0x9d 0x00`.
+  // Layout (relative to block start):
+  //   byte 0-3   : 0x89 0x00 0x9d 0x00 (block header)
+  //   byte 4-5   : 0x39 0x04 (inner marker)
+  //   byte 6     : slot_index (u8 — matches the slot byte referenced later by
+  //                lux_const_color_extended 0xa1 0x09 <slot> 0x23 0xf9 0x8b color)
+  //   byte 7-11  : 0x23 0xf9 0x8b 0x29 0x15 (5-byte marker sequence)
+  //   byte 12-15 : float32 r
+  //   byte 16-19 : float32 g
+  //   byte 20-23 : float32 b
+  //   byte 24-27 : float32 a  (alpha channel; not stored in colorSlots)
+  //   byte 28+   : "color"  + 0x1d + flags + "flags" + 0x9f  end-of-block marker
+  // Evidence: hex dump of translucent candle wax sub-shader region, decoded bytes
+  // match the reference's sub-shader interpretation in kmp-pipeline.mjs:380-465.
+  for (let pos = region.start; pos + 28 < region.mainShaderStart; pos++) {
+    if (buf[pos] === 0x89 && buf[pos + 1] === 0x00 && buf[pos + 2] === 0x9d && buf[pos + 3] === 0x00) {
+      const slotIndex = buf[pos + 6]
+      const subId = buf[pos + 2]
+      const r = view.getFloat32(pos + 12, true)
+      const g = view.getFloat32(pos + 16, true)
+      const b = view.getFloat32(pos + 20, true)
+      if (Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b)
+          && r >= 0 && r <= 1 && g >= 0 && g <= 1 && b >= 0 && b <= 1) {
+        colorSlots.set(slotIndex, { r, g, b })
+        blocks.push({ offset: pos, subId, slotIndex })
+      }
+    }
+  }
+
+  return {
+    start: region.start,
+    end: region.end,
+    mainShaderStart: region.mainShaderStart,
+    blocks,
+    colorSlots,
   }
 }
 
