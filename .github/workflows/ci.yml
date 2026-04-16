@@ -1,0 +1,29 @@
+name: CI
+on:
+  push:
+    paths: ['kmp-three-suite/**']
+  pull_request:
+    paths: ['kmp-three-suite/**']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kmp-three-suite
+    strategy:
+      matrix:
+        node-version: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: kmp-three-suite/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - run: npm audit --audit-level=high
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install chromium --with-deps
+      - run: npx playwright test
