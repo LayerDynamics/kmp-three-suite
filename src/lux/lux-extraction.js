@@ -742,8 +742,20 @@ function applyPlasticTransparent(mat) {
   if (mat.ior === 1.5) mat.ior = 1.45
 }
 
+/**
+ * KeyShot's stock "Plastic" (lux_plastic) is an opaque dielectric —
+ * diffuse + specular, no transmission. The previous value of 0.2 caused
+ * MeshPhysicalMaterial to swap ~20% of the diffuse lobe for samples of
+ * the environment behind the surface, which against a black background
+ * rendered dark-colored plastics (e.g. DEFCAD STANDARD BLACK, base
+ * color #1c1c1c, spec 0.12) as near-invisible silhouettes.
+ * Cloudy / transparent plastics continue to route through
+ * applyPlasticCloudy / applyPlasticTransparent, which legitimately
+ * set transmission > 0.
+ */
 function applyPlastic(mat) {
-  mat.transmission = 0.2
+  // mat.transmission = 0.2
+  mat.transmission = 0
   mat.roughness = Math.max(mat.roughness, 0.15)
 }
 
