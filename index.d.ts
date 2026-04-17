@@ -191,6 +191,10 @@ export interface MtlExtraction {
   rawParameters: RawParam[]
   materialName: string | null
   shaderType: string | null
+  // Original MTL byte buffer. Retained so downstream code (hex dumps, coverage,
+  // re-archiving) can re-scan without re-decoding. Holding the extraction keeps
+  // these bytes alive — drop references to free memory.
+  source: Uint8Array
 }
 
 export interface KmpExtraction {
@@ -230,10 +234,14 @@ export interface ProcessResult {
 
 export type ProcessInput = string | Uint8Array | ArrayBuffer | Buffer | File | Blob
 
-export interface ProcessOptions {
+export interface ExtractOptions {
+  /** Hard cap, in bytes, on cumulative uncompressed archive size. */
+  maxArchiveSize?: number
+}
+
+export interface ProcessOptions extends ExtractOptions {
   includeHexDump?: boolean
   includeCoverage?: boolean
-  maxArchiveSize?: number
   shaderTypeOverrides?: Record<string, (mat: MaterialDefinition, params: Record<string, RawParam>, accessors: Accessors) => void>
 }
 
@@ -246,25 +254,45 @@ export interface Accessors {
   getAnyScalar: (...keys: string[]) => number | null
   getColorOrScalar: (...keys: string[]) => RgbTriplet | null
   getAnyAsColorArray: (...keys: string[]) => [number, number, number] | null
+  byName: Record<string, RawParam>
 }
 
 export class KmpParseError extends Error {
-  code: 'NO_MTL' | 'BAD_ZIP' | 'BAD_PNG' | 'BAD_TLV'
+  code: 'NO_MTL' | 'BAD_ZIP' | 'BAD_PNG'
   offset?: number
-  constructor(code: KmpParseError['code'], message: string, offset?: number)
+  constructor(code: KmpParseError['code'], message: string, offset?: number, options?: { cause?: unknown })
 }
 
 export function process(input: ProcessInput, options?: ProcessOptions): Promise<ProcessResult[]>
-export function extractKmp(input: ProcessInput, options?: ProcessOptions): Promise<KmpExtraction[]>
+export function extractKmp(input: ProcessInput, options?: ExtractOptions): Promise<KmpExtraction[]>
 export function extractMtl(mtlBuf: Uint8Array): MtlExtraction
+export const MTL_KNOWN_SHADER_TYPES: readonly string[]
 export function parseParamSection(buf: Uint8Array, view: DataView, start: number, end: number): RawParam[]
-export function buildMaterialDefinition(rawParams: RawParam[], shaderType: string | null, subShaderColors: Map<number, RgbTriplet>): { materialDefinition: MaterialDefinition; warnings: string[] }
+export const KNOWN_BOOL_PARAM_NAMES: readonly string[]
+export function buildMaterialDefinition(rawParams: RawParam[], shaderType: string | null, subShaderColors: Map<number, RgbTriplet>, options?: Pick<ProcessOptions, 'shaderTypeOverrides'>): { materialDefinition: MaterialDefinition; warnings: string[] }
 export function makeAccessors(rawParams: RawParam[]): Accessors
 export function createDefaultMaterialDefinition(): MaterialDefinition
 export const KNOWN_SHADER_TYPES: readonly string[]
 export function toMemory(result: ProcessResult): ProcessResult
 export function toFilesystem(result: ProcessResult, outDir: string): Promise<{ jsonPath: string; pngPath: string; texturePaths: string[] }>
 export function toMaterialDefinitionOnly(result: ProcessResult): MaterialDefinition
+export interface FixtureJsonOptions {
+  /** Repo-relative identifier written into the `sourceKmp` field. */
+  sourceKmp?: string
+  /** Library version string written into the `bakerVersion` field. */
+  bakerVersion?: string
+  /** Override `bakedAt` timestamp so byte-identical re-runs are possible. */
+  bakedAt?: string
+}
+export function toFixtureJson(
+  result: ProcessResult,
+  outPath: string,
+  options?: FixtureJsonOptions,
+): Promise<{ outPath: string; byteLength: number }>
+export const TEXTURE_SLOT_KEYWORDS: readonly { pattern: RegExp; slot: string }[]
+export const TEXTURE_EXTENSIONS: ReadonlySet<string>
+export function parseXmlConfig(xmlText: string | null | undefined): XmlConfig
+export function autoAssignTextures(mat: MaterialDefinition, textures: TextureEntry[]): MaterialDefinition
 
 export namespace binaryTools {
   export function findSequence(buf: Uint8Array, needle: Uint8Array, start?: number): number
@@ -282,7 +310,7 @@ export namespace binaryTools {
   export function readU8(buf: Uint8Array, offset: number): number
   export function readAscii(buf: Uint8Array, start: number, end: number): string
   export function readAsciiPrintable(buf: Uint8Array, start: number, end: number): string
-  export function isValidColorMarker(buf: Uint8Array, pos: number, end: number): boolean
+  export function isValidColorMarker(buf: Uint8Array, view: DataView, pos: number, end: number): boolean
   export function isValidBoolMarker(buf: Uint8Array, pos: number, end: number): boolean
   export function isValidTexslotMarker(buf: Uint8Array, pos: number, end: number): boolean
   export function cleanParamName(raw: string): string
@@ -293,4 +321,5 @@ export namespace binaryTools {
   export function findParamSection(buf: Uint8Array, pngEnd: number, shaderLineEnd: number): { start: number; end: number }
   export function findFooter(buf: Uint8Array, paramStart: number): { type: 'matmeta' | 'name_footer' | 'eof'; offset: number }
   export function findSubShaderRegion(buf: Uint8Array, paramStart: number, paramEnd: number, knownShaderTypes: readonly string[]): SubShaderRegion | null
+  export function findSubShaderRefs(buf: Uint8Array, paramStart: number, paramEnd: number): Array<{ offset: number; slot: number }>
 }

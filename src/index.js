@@ -1,7 +1,7 @@
 // Public surface. Mirrored by index.d.ts.
 
 export { process, KmpParseError } from './pipeline/process.js'
-export { toMemory, toFilesystem, toMaterialDefinitionOnly } from './pipeline/target.js'
+export { toMemory, toFilesystem, toMaterialDefinitionOnly, toFixtureJson } from './pipeline/target.js'
 export { extractKmp } from './kmp/kmp-extraction.js'
 export { extractMtl, KNOWN_SHADER_TYPES as MTL_KNOWN_SHADER_TYPES } from './mtl/mtl-extraction.js'
 export { parseParamSection, KNOWN_BOOL_PARAM_NAMES } from './mtl/mtl-param-parser.js'

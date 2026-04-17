@@ -106,10 +106,11 @@ Full evidence: see the cited file:line references inside `src/**/*.js`.
 ## Running tests
 
 ```sh
-npm test              # full vitest suite (217+ tests)
+npm test              # full vitest suite (443 tests across 29 files)
 npm run bench         # performance benchmark
 npm run build         # browser bundle to dist/
 npx playwright test   # Chromium smoke test of process(Uint8Array) in-browser
+BENCH_STRICT=1 npm test   # enforce per-file p95 budgets (below) at ×3 tolerance
 ```
 
 ## Performance
@@ -119,6 +120,10 @@ On Node 24 / M2 MacBook, p95 per `.kmp`:
 - `paint-metallic-sienna-gold.kmp` (108 KB): ~0.6 ms
 - `toon-fill-black-bright.kmp` (20 KB): ~0.4 ms
 - `translucent-candle-wax.kmp` (278 KB): ~2.7 ms
+
+These targets are tracked as `README_TARGETS_MS` in `tests/benchmark.perf.test.js`;
+default runs enforce a 10 ms loose guardrail, and `BENCH_STRICT=1` asserts each
+target × 3 as a strict regression gate.
 
 ## License
 

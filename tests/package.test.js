@@ -21,6 +21,17 @@ describe('package.json contract', () => {
     expect(pkg.exports['.'].import).toBe('./src/index.js')
     expect(pkg.exports['.'].types).toBe('./index.d.ts')
   })
+  it('has no CJS require export path (ESM-only contract)', () => {
+    expect(pkg.exports['.'].require).toBeUndefined()
+    expect(pkg.exports['.']['default']).toBeUndefined()
+  })
+  it('top-level "types" and exports["."]["types"] resolve to the same file', () => {
+    // Both are set on purpose — top-level feeds pre-4.7 TypeScript's classic
+    // resolution, conditional exports feed modern moduleResolution. This
+    // assertion pins them together so they cannot drift.
+    const normalised = pkg.exports['.'].types.replace(/^\.\//, '')
+    expect(normalised).toBe(pkg.types)
+  })
   it('requires Node 20+', () => {
     expect(pkg.engines.node).toMatch(/>=\s*20/)
   })

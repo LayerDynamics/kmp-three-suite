@@ -10,6 +10,14 @@ export const KNOWN_SHADER_TYPES = Object.freeze([
   'lux_x_ray', 'lux_flat', 'lux_advanced', 'lux_cutaway',
 ])
 
+/**
+ * Build a fresh {@link MaterialDefinition} populated with Three.js / Lux PBR
+ * defaults (grey diffuse, zero metalness, 0.5 roughness, IOR 1.5, all maps
+ * nulled, no per-shader side-table). Each call returns a new object so the
+ * caller may mutate it freely without leaking state.
+ *
+ * @returns {import('../../index.d.ts').MaterialDefinition}
+ */
 export function createDefaultMaterialDefinition() {
   return {
     color: '#888888', metalness: 0.0, roughness: 0.5,

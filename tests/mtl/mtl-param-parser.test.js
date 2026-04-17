@@ -75,6 +75,25 @@ describe('parseParamSection — marker scan', () => {
     expect(out.map(p => p.name)).toEqual(['roughness', 'metal'])
     expect(out[1].value).toBeCloseTo(1.0, 6)
   })
+  it('rejects stray 0x17 byte whose byte-before is non-printable (false FLOAT marker)', () => {
+    // Layout: valid float param, then a padding/garbage byte (0x00), then a
+    // stray 0x17 followed by plausible-looking payload bytes. Before the guard,
+    // the stray 0x17 would be scanned as a marker (m > start, fits) and the
+    // main walk would parse it with an empty/garbled name, producing a
+    // spurious second record. The printable-byte-before guard rejects it.
+    const buf = mkBuf(['roughness', [0x17, 0x00], f32(0.5), [0x00, 0x17, 0x03], f32(0.25)])
+    const v = new DataView(buf.buffer, buf.byteOffset, buf.byteLength)
+    const out = parseParamSection(buf, v, 0, buf.length)
+    expect(out).toHaveLength(1)
+    expect(out[0]).toMatchObject({ name: 'roughness', type: 'float', value: 0.5 })
+  })
+  it('rejects stray 0x1d byte whose byte-before is non-printable (false INT marker)', () => {
+    const buf = mkBuf(['count', [0x1d, 0x00], u32(7), [0x00, 0x1d, 0x02], u32(999)])
+    const v = new DataView(buf.buffer, buf.byteOffset, buf.byteLength)
+    const out = parseParamSection(buf, v, 0, buf.length)
+    expect(out).toHaveLength(1)
+    expect(out[0]).toMatchObject({ name: 'count', type: 'int', value: 7 })
+  })
   it('strips leading non-alpha junk from name', () => {
     const buf = mkBuf([[0x00, 0x01, 0x02], 'contour_angle', [0x17, 0x00], f32(60)])
     const v = new DataView(buf.buffer, buf.byteOffset, buf.byteLength)

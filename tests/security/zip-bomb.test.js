@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { zipSync } from 'fflate'
 import { safeExtract, unzipArchive } from '../../src/binary-tools/binary-tools.js'
-import { KmpParseError } from '../../src/pipeline/errors.js'
+import { KmpParseError } from '../../src/errors.js'
 
 describe('zip-bomb protection (safeExtract — post-inflation tripwire)', () => {
   it('trips the 256 MB default cap when cumulative size exceeds it', () => {

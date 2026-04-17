@@ -1,8 +1,6 @@
 // Archive-level schema: texture-slot keyword table + texture extensions.
 
-export const TEXTURE_EXTENSIONS = Object.freeze(new Set([
-  'png', 'jpg', 'jpeg', 'exr', 'hdr', 'tif', 'tiff', 'bmp',
-]))
+export { TEXTURE_EXTENSIONS } from '../binary-tools/texture-extensions.js'
 
 // Ordered list — first match wins.
 export const TEXTURE_SLOT_KEYWORDS = Object.freeze([

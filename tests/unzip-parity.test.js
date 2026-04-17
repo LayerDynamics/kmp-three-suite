@@ -7,12 +7,21 @@ import { unzipArchive } from '../src/binary-tools/binary-tools.js'
 
 const KMP_DIR = '/Users/ryanoboyle/defcad-file-browser/file-browser-client/public/assets/kmp'
 
+const hasSystemUnzip = (() => {
+  try {
+    execSync('which unzip', { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+})()
+
 describe.each([
   'paint-metallic-sienna-gold.kmp',
   'toon-fill-black-bright.kmp',
   'translucent-candle-wax.kmp',
 ])('fflate vs. system unzip parity — %s', (kmpName) => {
-  it('fflate output matches unzip output byte-for-byte', () => {
+  it.skipIf(!hasSystemUnzip)('fflate output matches unzip output byte-for-byte', () => {
     const kmpPath = join(KMP_DIR, kmpName)
     const bytes = new Uint8Array(readFileSync(kmpPath))
     const ours = unzipArchive(bytes)
